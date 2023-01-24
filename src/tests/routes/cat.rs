@@ -2,12 +2,12 @@ use reqwest;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use crate::lib::models::ModelExt;
 use crate::models::cat::Cat;
 use crate::models::cat::PublicCat;
-use crate::tests::setup::with_app;
+use crate::tests::setup::use_app;
 use crate::tests::utils::create_user;
 use crate::tests::utils::create_user_token;
+use crate::utils::models::ModelExt;
 
 #[test]
 fn post_cat_route() {
@@ -20,13 +20,13 @@ fn post_cat_route() {
     name: "Tigrin".to_owned(),
   };
 
-  with_app(async move {
+  use_app(async move {
     let user = create_user("nico@test.com").await.unwrap();
     let token = create_user_token(user.clone()).await.unwrap();
 
     let client = reqwest::Client::new();
     let res = client
-      .post("http://localhost:8088/cats")
+      .post("http://localhost:8088/v1/cats")
       .header("Authorization", format!("Bearer {}", token))
       .json(&body)
       .send()
@@ -48,7 +48,7 @@ fn post_cat_route() {
 
 #[test]
 fn get_cats_route() {
-  with_app(async move {
+  use_app(async move {
     let user = create_user("nico@test.com").await.unwrap();
     let token = create_user_token(user.clone()).await.unwrap();
 
@@ -60,7 +60,7 @@ fn get_cats_route() {
 
     let client = reqwest::Client::new();
     let res = client
-      .get("http://localhost:8088/cats")
+      .get("http://localhost:8088/v1/cats")
       .header("Authorization", format!("Bearer {}", token))
       .send()
       .await
@@ -98,7 +98,7 @@ fn get_cats_route() {
 
 #[test]
 fn get_cat_by_id_route() {
-  with_app(async move {
+  use_app(async move {
     let user = create_user("nico@test.com").await.unwrap();
     let token = create_user_token(user.clone()).await.unwrap();
 
@@ -107,7 +107,10 @@ fn get_cat_by_id_route() {
 
     let client = reqwest::Client::new();
     let res = client
-      .get(format!("http://localhost:8088/cats/{}", cholin.id.unwrap()))
+      .get(format!(
+        "http://localhost:8088/v1/cats/{}",
+        cholin.id.unwrap()
+      ))
       .header("Authorization", format!("Bearer {}", token))
       .send()
       .await
@@ -128,7 +131,7 @@ fn get_cat_by_id_route() {
 
 #[test]
 fn remove_cat_by_id_route() {
-  with_app(async move {
+  use_app(async move {
     let user = create_user("nico@test.com").await.unwrap();
     let token = create_user_token(user.clone()).await.unwrap();
 
@@ -137,7 +140,10 @@ fn remove_cat_by_id_route() {
 
     let client = reqwest::Client::new();
     let res = client
-      .delete(format!("http://localhost:8088/cats/{}", tigrin.id.unwrap()))
+      .delete(format!(
+        "http://localhost:8088/v1/cats/{}",
+        tigrin.id.unwrap()
+      ))
       .header("Authorization", format!("Bearer {}", token))
       .send()
       .await

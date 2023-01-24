@@ -17,8 +17,7 @@ use wither::mongodb::results::UpdateResult;
 use wither::Model as WitherModel;
 use wither::ModelCursor;
 
-use crate::database::get_connection;
-use crate::errors::BadRequest;
+use crate::database::CONNECTION;
 use crate::errors::Error;
 
 // This is the Model trait. All models that have a MongoDB collection should
@@ -28,18 +27,15 @@ pub trait ModelExt {
   type T: WitherModel + Send + Validate;
 
   async fn create(mut model: Self::T) -> Result<Self::T, Error> {
-    model
-      .validate()
-      .map_err(|_error| Error::BadRequest(BadRequest::empty()))?;
-
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
+    model.validate().map_err(|_error| Error::bad_request())?;
     model.save(connection, None).await.map_err(Error::Wither)?;
 
     Ok(model)
   }
 
   async fn find_by_id(id: &ObjectId) -> Result<Option<Self::T>, Error> {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::find_one(connection, doc! { "_id": id }, None)
       .await
       .map_err(Error::Wither)
@@ -49,7 +45,7 @@ pub trait ModelExt {
   where
     O: Into<Option<FindOneOptions>> + Send,
   {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::find_one(connection, query, options)
       .await
       .map_err(Error::Wither)
@@ -59,7 +55,7 @@ pub trait ModelExt {
   where
     O: Into<Option<FindOptions>> + Send,
   {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::find(connection, query, options)
       .await
       .map_err(Error::Wither)?
@@ -72,8 +68,8 @@ pub trait ModelExt {
   where
     O: Into<Option<FindOptions>> + Send,
   {
-    let connection = get_connection();
-    // TODO: Count and find in parallel.
+    let connection = CONNECTION.get().await;
+
     let count = Self::T::collection(connection)
       .count_documents(query.clone(), None)
       .await
@@ -93,7 +89,7 @@ pub trait ModelExt {
   where
     O: Into<Option<FindOptions>> + Send,
   {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::find(connection, query, options)
       .await
       .map_err(Error::Wither)
@@ -103,7 +99,7 @@ pub trait ModelExt {
     query: Document,
     update: Document,
   ) -> Result<Option<Self::T>, Error> {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     let options = FindOneAndUpdateOptions::builder()
       .return_document(ReturnDocument::After)
       .build();
@@ -121,7 +117,7 @@ pub trait ModelExt {
   where
     O: Into<Option<UpdateOptions>> + Send,
   {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::collection(connection)
       .update_one(query, update, options)
       .await
@@ -136,7 +132,7 @@ pub trait ModelExt {
   where
     O: Into<Option<UpdateOptions>> + Send,
   {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::collection(connection)
       .update_many(query, update, options)
       .await
@@ -144,14 +140,14 @@ pub trait ModelExt {
   }
 
   async fn delete_many(query: Document) -> Result<DeleteResult, Error> {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::delete_many(connection, query, None)
       .await
       .map_err(Error::Wither)
   }
 
   async fn delete_one(query: Document) -> Result<DeleteResult, Error> {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::collection(connection)
       .delete_one(query, None)
       .await
@@ -159,7 +155,7 @@ pub trait ModelExt {
   }
 
   async fn count(query: Document) -> Result<u64, Error> {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     Self::T::collection(connection)
       .count_documents(query, None)
       .await
@@ -167,7 +163,7 @@ pub trait ModelExt {
   }
 
   async fn exists(query: Document) -> Result<bool, Error> {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
     let count = Self::T::collection(connection)
       .count_documents(query, None)
       .await
@@ -180,7 +176,8 @@ pub trait ModelExt {
   where
     A: Serialize + DeserializeOwned,
   {
-    let connection = get_connection();
+    let connection = CONNECTION.get().await;
+
     let documents = Self::T::collection(connection)
       .aggregate(pipeline, None)
       .await
@@ -199,9 +196,7 @@ pub trait ModelExt {
   }
 
   async fn sync_indexes() -> Result<(), Error> {
-    let connection = get_connection();
-    Self::T::sync(connection).await.map_err(Error::Wither)?;
-
-    Ok(())
+    let connection = CONNECTION.get().await;
+    Self::T::sync(connection).await.map_err(Error::Wither)
   }
 }

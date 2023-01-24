@@ -4,15 +4,13 @@ use bson::doc;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-use crate::errors::BadRequest;
-use crate::errors::NotFound;
 use crate::errors::{AuthenticateError, Error};
-use crate::lib::custom_response::{CustomResponse, CustomResponseBuilder};
-use crate::lib::models::ModelExt;
-use crate::lib::token;
 use crate::models::user;
 use crate::models::user::{PublicUser, User};
-use crate::settings::get_settings;
+use crate::settings::SETTINGS;
+use crate::utils::custom_response::{CustomResponse, CustomResponseBuilder};
+use crate::utils::models::ModelExt;
+use crate::utils::token;
 
 pub fn create_route() -> Router {
   Router::new()
@@ -42,18 +40,12 @@ async fn authenticate_user(
 
   if email.is_empty() {
     debug!("Missing email, returning 400 status code");
-    return Err(Error::BadRequest(BadRequest::new(
-      "email".to_owned(),
-      "Missing email attribute".to_owned(),
-    )));
+    return Err(Error::bad_request());
   }
 
   if password.is_empty() {
     debug!("Missing password, returning 400 status code");
-    return Err(Error::BadRequest(BadRequest::new(
-      "password".to_owned(),
-      "Missing password attribute".to_owned(),
-    )));
+    return Err(Error::bad_request());
   }
 
   let user = User::find_one(doc! { "email": email }, None).await?;
@@ -62,7 +54,7 @@ async fn authenticate_user(
     Some(user) => user,
     None => {
       debug!("User not found, returning 401");
-      return Err(Error::NotFound(NotFound::new(String::from("user"))));
+      return Err(Error::not_found());
     }
   };
 
@@ -76,8 +68,7 @@ async fn authenticate_user(
     return Err(Error::Authenticate(AuthenticateError::Locked));
   }
 
-  let settings = get_settings();
-  let secret = settings.auth.secret.as_str();
+  let secret = SETTINGS.auth.secret.as_str();
   let token = token::create(user.clone(), secret)
     .map_err(|_| Error::Authenticate(AuthenticateError::TokenCreation))?;
 

@@ -5,17 +5,12 @@ use tower_http::{
   sensitive_headers::SetSensitiveHeadersLayer, trace,
 };
 
-use crate::database;
 use crate::logger;
 use crate::models;
 use crate::routes;
 
 pub async fn create_app() -> Router {
   logger::setup();
-
-  database::setup()
-    .await
-    .expect("Failed to setup database connection");
 
   models::sync_indexes()
     .await
@@ -24,7 +19,11 @@ pub async fn create_app() -> Router {
   Router::new()
     .merge(routes::status::create_route())
     .merge(routes::user::create_route())
-    .merge(routes::cat::create_route())
+    .merge(Router::new().nest(
+      "/v1",
+      // All public v1 routes will be nested here.
+      Router::new().merge(routes::cat::create_route()),
+    ))
     // High level logging of requests and responses
     .layer(
       trace::TraceLayer::new_for_http()

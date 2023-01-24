@@ -4,11 +4,11 @@ use tracing::info;
 mod app;
 mod database;
 mod errors;
-mod lib;
 mod logger;
 mod models;
 mod routes;
 mod settings;
+mod utils;
 
 // There are a couple approaches to take when implementing E2E tests. This
 // approach adds tests on /src/tests, this way tests can reference modules
@@ -19,14 +19,13 @@ mod settings;
 mod tests;
 
 use errors::Error;
-use settings::get_settings;
+use settings::SETTINGS;
 
 #[tokio::main]
 async fn main() {
   let app = app::create_app().await;
 
-  let settings = get_settings();
-  let port = settings.server.port;
+  let port = SETTINGS.server.port;
   let address = SocketAddr::from(([127, 0, 0, 1], port));
 
   info!("Server listening on {}", &address);
